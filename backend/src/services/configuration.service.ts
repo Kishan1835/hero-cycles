@@ -14,7 +14,7 @@ export const configurationService = {
     }
 
     const foundParts = await Promise.all(uniquePartIds.map((id) => partRepository.findById(id)));
-    const missing = uniquePartIds.filter((id, idx) => !foundParts[idx]);
+    const missing = uniquePartIds.filter((_id, idx) => !foundParts[idx]);
     if (missing.length > 0) {
       throw new BadRequestError(`Unknown part ID(s): ${missing.join(', ')}`);
     }

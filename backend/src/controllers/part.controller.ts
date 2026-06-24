@@ -19,8 +19,8 @@ export const partController = {
     res.status(200).json(result);
   }),
 
-  update: asyncHandler(async (req: Request<{ id: string }, unknown, UpdatePartInput>, res: Response) => {
-    const part = await partService.update(req.params.id, req.body, req.user!.userId);
+  update: asyncHandler(async (req: Request, res: Response) => {
+    const part = await partService.update(req.params.id, req.body as UpdatePartInput, req.user!.userId);
     res.status(200).json(part);
   }),
 
