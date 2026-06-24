@@ -2,10 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
-    "types": [
-      "node",
-      "express"
-    ],
+   
     "moduleResolution": "node",
     "lib": [
       "ES2022"
