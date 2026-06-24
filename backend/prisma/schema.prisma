@@ -1,0 +1,154 @@
+// Hero Cycles Pricing Engine — Database Schema
+// PostgreSQL + Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  PRICING_MANAGER
+  SALESPERSON
+}
+
+enum PartCategory {
+  FRAME
+  GEAR_SET
+  TYRE
+  BRAKE
+  SEAT
+  HANDLEBAR
+  CHAIN
+  PEDAL
+  OTHER
+}
+
+enum PartStatus {
+  ACTIVE
+  DISCONTINUED
+  DRAFT
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  PRICE_CHANGE
+  LOGIN
+}
+
+// ──────────────────────────────────────────────
+// MODELS
+// ──────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(SALESPERSON)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdConfigurations BicycleConfiguration[] @relation("ConfigCreatedBy")
+  priceChanges          PartPriceHistory[]     @relation("PriceChangedBy")
+  auditLogs             AuditLog[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Part {
+  id        String       @id @default(uuid())
+  name      String
+  category  PartCategory
+  status    PartStatus   @default(ACTIVE)
+  sku       String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  priceHistory        PartPriceHistory[]
+  configurationParts  ConfigurationPart[]
+
+  @@index([category])
+  @@index([status])
+  @@map("parts")
+}
+
+// Append-only ledger of price points. Current price = latest row
+// with effectiveDate <= now, per part. Historical price = latest
+// row with effectiveDate <= target date.
+model PartPriceHistory {
+  id            String   @id @default(uuid())
+  partId        String
+  cost          Decimal  @db.Decimal(10, 2)
+  effectiveDate DateTime
+  changedById   String
+  note          String?
+  createdAt     DateTime @default(now())
+
+  part      Part @relation(fields: [partId], references: [id], onDelete: Cascade)
+  changedBy User @relation("PriceChangedBy", fields: [changedById], references: [id])
+
+  // Prevents two price points for the same part on the same effective date
+  @@unique([partId, effectiveDate])
+  @@index([partId, effectiveDate])
+  @@map("part_price_history")
+}
+
+model BicycleConfiguration {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  modelCode   String   @unique
+  isActive    Boolean  @default(true)
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User                 @relation("ConfigCreatedBy", fields: [createdById], references: [id])
+  parts     ConfigurationPart[]
+
+  @@index([modelCode])
+  @@map("bicycle_configurations")
+}
+
+// Join table: which parts (and how many) make up a configuration
+model ConfigurationPart {
+  id              String @id @default(uuid())
+  configurationId String
+  partId          String
+  quantity        Int    @default(1)
+
+  configuration BicycleConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+  part          Part                 @relation(fields: [partId], references: [id])
+
+  @@unique([configurationId, partId])
+  @@map("configuration_parts")
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  action     AuditAction
+  entityType String
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

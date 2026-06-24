@@ -1,0 +1,29 @@
+# Render Blueprint — Hero Cycles Pricing Engine API
+# Docs: https://render.com/docs/blueprint-spec
+#
+# 1. Create a Neon Postgres database and copy its connection string.
+# 2. In Render: New → Blueprint → connect this repo.
+# 3. Set DATABASE_URL and CORS_ORIGIN when prompted (CORS = your Vercel URL).
+
+services:
+  - type: web
+    name: hero-cycles-api
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npx prisma migrate deploy && npm run prisma:seed && npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: JWT_EXPIRES_IN
+        value: 8h
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
